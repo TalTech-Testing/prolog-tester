@@ -574,7 +574,7 @@ unit_dependencies(Unit, Dependencies) :-
 follow_dependecy_tree(Unit, Unit, _) :-
     unit_dependencies(Unit, []), !.
 follow_dependecy_tree(Next, Unit, Previous) :-
-    member(Unit, Previous) -> throw(invalid_dependency_tree);
+    member(Unit, Previous) -> throw(invalid_dependency_graph);
     unit_dependencies(Unit, Dependencies), (
         member(Set, Dependencies),
         follow_dependecy_tree(Next, Set, [Unit|Previous])
