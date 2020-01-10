@@ -89,10 +89,10 @@ def test(json_string):
             source_file = {}
             file_path = os.path.join(path, file_name)
             source_file["path"] = file_path
-            with open(file_path) as f:
-                source_file["content"] = f.read()
+            with open(file_path, encoding='utf-8') as f:
+                source_file["contents"] = f.read()
             source.append(source_file)
-    output["source"] = source
+    output["files"] = source
 
     content_files = copyfiles(input_data["contentRoot"], testing_path)
     test_files = copyfiles(input_data["testRoot"], testing_path)
