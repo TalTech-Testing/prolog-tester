@@ -12,3 +12,6 @@ Also. Don't forget to copy the eplunit.pl file to tester folder.
 You can develop using docker-compose.yml file - this way you don't need anything yourself and its pretty damn fast
 
 Also. Read comments in Dockerfile
+
+### Architecture diagram
+![flow](./Testeri_cicd.png)

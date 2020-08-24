@@ -194,6 +194,7 @@ def test(json_string):
                     test_weight = int(test[3])
                     points += test_weight
                     total_tests += 1
+                    unit_test["name"] = test[0]
                     unit_test["printExceptionMessage"] = "false"
                     unit_test["printStackTrace"] = "false"
 
