@@ -14,4 +14,4 @@ You can develop using docker-compose.yml file - this way you don't need anything
 Also. Read comments in Dockerfile
 
 ### Architecture diagram
-![flow](./Testeri_cicd.png)
+![flow](./testeri_cicd.png)
