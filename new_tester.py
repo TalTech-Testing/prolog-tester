@@ -1,78 +1,88 @@
-import subprocess, json, csv, sys, os
+import csv
+import json
+import os
+import subprocess
+import sys
+import time
 from collections import OrderedDict
 from io import StringIO
-from shutil import rmtree, copy2, copystat, Error
 from re import match
-from time import sleep
+from shutil import rmtree, copy2, copystat, Error
+
 
 def sh(cmd):
-   """
-   Executes the command.
-   Returns (returncode, stdout, stderr, Popen object)
-   """
-   p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
-   out, err = p.communicate()
-   out = out.decode("utf-8")
-   err = err.decode("utf-8")
-   return (p.returncode, out, err, p)
+    """
+    Executes the command.
+    Returns (returncode, stdout, stderr, Popen object)
+    """
+    p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+    out, err = p.communicate()
+    out = out.decode("utf-8")
+    err = err.decode("utf-8")
+    return p.returncode, out, err, p
+
 
 output_format = """  {unit}-{name}: {description} (weight: {weight})
     {result}
 """
 
-def copyfiles(src, dst, ignore=None):
-   """
-   https://docs.python.org/2/library/shutil.html#copytree-example
-   with some modifications (destination folder can exist)
-   """
-   names = os.listdir(src)
-   files = []
-   if ignore is not None:
-      ignored_names = ignore(src, names)
-   else:
-      ignored_names = set()
 
-   if not os.path.exists(dst):
-      os.makedirs(dst)
-   errors = []
-   for name in names:
-      if name in ignored_names:
-         continue
-      srcname = os.path.join(src, name)
-      dstname = os.path.join(dst, name)
-      try:
-         if os.path.isdir(srcname):
-            files += copyfiles(srcname, dstname, ignore)
-         else:
-            copy2(srcname, dstname)
-            files += [dstname]
-         # XXX What about devices, sockets etc.?
-      except (IOError, os.error) as why:
-         errors.append((srcname, dstname, str(why)))
-      # catch the Error from the recursive copytree so that we can
-      # continue with other files
-      except Error as err:
-         errors.extend(err.args[0])
-   try:
-      copystat(src, dst)
-   except WindowsError:
-      # can't copy file access times on Windows
-      pass
-   except OSError as why:
-      errors.extend((src, dst, str(why)))
-   if errors:
-      raise Error(errors)
-   return files
+def copyfiles(src, dst, ignore=None):
+    """
+    https://docs.python.org/2/library/shutil.html#copytree-example
+    with some modifications (destination folder can exist)
+    """
+    names = os.listdir(src)
+    files = []
+    if ignore is not None:
+        ignored_names = ignore(src, names)
+    else:
+        ignored_names = set()
+
+    if not os.path.exists(dst):
+        os.makedirs(dst)
+    errors = []
+    for name in names:
+        if name in ignored_names:
+            continue
+        srcname = os.path.join(src, name)
+        dstname = os.path.join(dst, name)
+        try:
+            if os.path.isdir(srcname):
+                files += copyfiles(srcname, dstname, ignore)
+            else:
+                copy2(srcname, dstname)
+                files += [dstname]
+            # XXX What about devices, sockets etc.?
+        except (IOError, os.error) as why:
+            errors.append((srcname, dstname, str(why)))
+        # catch the Error from the recursive copytree so that we can
+        # continue with other files
+        except Error as err:
+            errors.extend(err.args[0])
+    try:
+        copystat(src, dst)
+    except WindowsError:
+        # can't copy file access times on Windows
+        pass
+    except OSError as why:
+        errors.extend((src, dst, str(why)))
+    if errors:
+        raise Error(errors)
+    return files
+
 
 testing_path = "/tmp/prolog-tester"
 main_test_re = "test_pr.*\.pl"
 csv_separator = "START_SIMPLE_REPORT\n"
+
 
 def main_tests(files):
     for file_name in files:
         file_name = os.path.relpath(file_name, testing_path)
         if match(main_test_re, file_name):
             yield file_name
+
 
 def test(json_string):
     try:
@@ -81,7 +91,7 @@ def test(json_string):
         pass
     input_data = json.loads(json_string)
 
-    output = { "results": [], "version": 1 }
+    output = {"type": "arete"}
 
     source = []
     for path, _, files in os.walk(input_data["contentRoot"]):
@@ -102,24 +112,51 @@ def test(json_string):
         if file_name in test_files:
             overwritten_files.append(os.path.relpath(file_name, testing_path))
 
-    if overwritten_files:
-        message = "Some of the submitted code was overwritten by the tester. Please rename the following files: {}." \
-            .format(", ". join(overwritten_files))
-        output["percentage"] = 0
-        output["output"] = message
-        return json.dumps(output)
-
     total_points = 0
     total_granted = 0
-    tests_output = ""
-    results = []
+    output["errors"] = []
+
+    if overwritten_files:
+        for file in overwritten_files:
+            error = dict()
+            error["lineNo"] = 0
+            error["columnNo"] = 0
+            error["fileName"] = file
+            error["hint"] = "Please rename the following file: {}".format(file)
+            output["errors"].append(error)
+        output["style"] = 0
+        output["totalGrade"] = 0
+        return json.dumps(output)
+
+    test_suites = []
+    console_output = []
 
     for grade_code, test_file in enumerate(main_tests(test_files), start=1):
+        test_context = dict()
+        test_context["startDate"] = time.time()
+        test_context["file"] = test_file
+        test_context["name"] = test_file.replace(".pl", "")
+        test_context["unitTests"] = []
         points = 0
         granted = 0
+
+        passed_tests = 0
+        total_tests = 0
+
         test_output = ""
         _, out, err, _ = sh("cd {} && swipl -qg run_tests -t halt {}".format(testing_path, test_file))
-        result = { "stdout": out, "stderr": err, "grade_type_code": grade_code, "name": test_file }
+        result = {"stdout": out, "stderr": err, "grade_type_code": grade_code, "name": test_file}
+        test_context["endDate"] = time.time()
+        console_output.append("file: {} stdout:\n{}".format(test_file, out))
+        console_output.append("file: {} stderr:\n{}".format(test_file, err))
+        if err:
+            error = dict()
+            error["lineNo"] = 0
+            error["columnNo"] = 0
+            error["fileName"] = test_file
+            error["message"] = err
+            error["hint"] = "Make sure your code works"
+            output["errors"].append(error)
 
         test_output += test_file + "\n"
         if err:
@@ -133,6 +170,7 @@ def test(json_string):
 
             result_reader = csv.reader(StringIO(out[csv_start:]))
             test_results = OrderedDict()
+
             for row in result_reader:
                 test_result = row[0]
                 if test_result == 'Fixme':
@@ -146,34 +184,63 @@ def test(json_string):
                 test_results[test_result] = list
 
             for category, tests in test_results.items():
-                test_output += "\n{} tests:\n".format(category)
                 for test in tests:
-                    test_result = test[-1]
+                    unit_test = dict()
+                    try:
+                        unit_test["timeElapsed"] = float(test[-1]) * 1000
+                    except ValueError:
+                        unit_test["timeElapsed"] = -1
+                    unit_test["weight"] = int(test[3])
                     test_weight = int(test[3])
                     points += test_weight
+                    total_tests += 1
+                    unit_test["printExceptionMessage"] = "false"
+                    unit_test["printStackTrace"] = "false"
+
+                    def fill_fields(test, unit_test):
+                        if test[0] == "description":
+                            unit_test["exceptionClass"] = test[1]
+                            unit_test["exceptionMessage"] = test[2]
+                        else:
+                            unit_test["exceptionClass"] = test[0]
+
                     if category == 'Passed':
                         granted += test_weight
-                        test_result = 'passed in {} seconds'.format(test[-1])
-                    test_output += output_format.format(unit=test[0], name=test[1],
-                        description=test[2], weight=test_weight, result=test_result)
+                        passed_tests += 1
+                        unit_test["status"] = "PASSED"
+                    elif category == 'failed':
+                        unit_test["status"] = "FAILED"
+                        fill_fields(test, unit_test)
+                    else:
+                        unit_test["status"] = "SKIPPED"
+                        fill_fields(test, unit_test)
+                    test_context["unitTests"].append(unit_test)
 
         if points == 0:
-            test_output += "No tests were run.\n"
-            result["percentage"] = 0
+            error = dict()
+            error["lineNo"] = 0
+            error["columnNo"] = 0
+            error["fileName"] = "root"
+            error["hint"] = "No tests were run."
+            output["errors"].append(error)
+            output["style"] = 0
+            test_context["grade"] = 0
         else:
-            result["percentage"] = 100.0 * granted / points
+            test_context["grade"] = 100.0 * granted / points
+        test_context["passedCount"] = passed_tests
         result["output"] = test_output
         total_points += points
         total_granted += granted
-        tests_output += test_output
-        results.append(result)
-    output["results"] = results
-    output["output"] = tests_output
+        test_suites.append(test_context)
+
+    output["consoleOutput"] = console_output
+    output["testSuites"] = test_suites
     if total_points == 0:
         output["percentage"] = 0
     else:
         output["percentage"] = 100.0 * total_granted / total_points
     return json.dumps(output)
+
 
 if __name__ == '__main__':
     json_string = "".join(sys.stdin)

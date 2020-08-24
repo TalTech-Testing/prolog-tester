@@ -2,6 +2,10 @@
 FROM ubuntu:latest
 MAINTAINER Gert Kanter <gert.kanter@ttu.ee>
 LABEL Description="Hodor prolog container"
+
+ENV TZ=Europe/Tallinn
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+
 RUN apt-get update
 RUN apt-get install -y python3 rsyslog && rsyslogd
 ENV TERM=xterm
@@ -15,6 +19,8 @@ ADD eplunit-1.0.0.zip /pkg
 RUN cd /pkg && echo 2 | swipl -g "pack_install('eplunit-1.0.0.zip')" -t halt
 
 # Add the tester
+# Comment this line out when developing locally
 ADD new_tester.py /pkg
 
-CMD /bin/bash -c "cd /pkg && timeout 120 python3 new_tester.py < /host/input.json > /host/output.json"
+# timeout is handled by Arete
+CMD /bin/bash -c "cd /pkg && timeout 5000 python3 new_tester.py < /host/input.json > /host/output.json"

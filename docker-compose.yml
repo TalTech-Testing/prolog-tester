@@ -1,0 +1,13 @@
+version: '3.4'
+
+services:
+
+  prolog_tester:
+    container_name: prolog_tester_v2
+    build:
+      context: .
+    volumes:
+      - './host:/host'
+      - './student:/student'
+      - './tester:/tester'
+      - './new_tester.py:/pkg/new_tester.py'
