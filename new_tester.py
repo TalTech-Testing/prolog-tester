@@ -213,7 +213,7 @@ def test(json_string):
                         granted += test_weight
                         passed_tests += 1
                         unit_test["status"] = "PASSED"
-                    elif category == 'failed':
+                    elif category == 'Failed':
                         unit_test["status"] = "FAILED"
                         fill_fields(test, unit_test)
                     else:
