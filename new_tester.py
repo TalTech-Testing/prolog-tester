@@ -153,18 +153,19 @@ def test(json_string):
         console_output.append("file: {} stderr:\n{}".format(test_file, err))
         if err:
             for line in err.split("\n"):
-                error = dict()
-                error["lineNo"] = 0
-                error["columnNo"] = 0
-                error["fileName"] = test_file
-                error["message"] = line
-                if line.startswith("ERROR"):
-                    error["hint"] = "Make sure your code works locally first"
-                output["style"] = 0
-                matches = re.findall(line_re, line)
-                if len(matches) > 0:
-                    error["lineNo"] = matches[0]
-                output["errors"].append(error)
+                if line:
+                    error = dict()
+                    error["lineNo"] = 0
+                    error["columnNo"] = 0
+                    error["fileName"] = test_file
+                    error["message"] = line
+                    if line.startswith("ERROR"):
+                        error["hint"] = "Make sure your code works locally first"
+                    output["style"] = 0
+                    matches = re.findall(line_re, line)
+                    if len(matches) > 0:
+                        error["lineNo"] = matches[0]
+                    output["errors"].append(error)
 
         csv_start = out.rfind(csv_separator)
         if csv_start < 0:
