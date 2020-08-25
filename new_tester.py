@@ -156,15 +156,19 @@ def test(json_string):
             error["fileName"] = test_file
             error["message"] = err
             error["hint"] = "Make sure your code works"
+            output["style"] = 0
             output["errors"].append(error)
-
-        test_output += test_file + "\n"
-        if err:
-            test_output += "Errors and warnings:\n" + err
 
         csv_start = out.rfind(csv_separator)
         if csv_start < 0:
-            test_output += "{} was not found in the tester output.\n".format(repr(csv_separator))
+            error = dict()
+            error["lineNo"] = 0
+            error["columnNo"] = 0
+            error["fileName"] = test_file
+            error["message"] = err
+            error["hint"] = "{} was not found in the tester output.\n".format(repr(csv_separator))
+            output["style"] = 0
+            output["errors"].append(error)
         else:
             csv_start += len(csv_separator)
 
