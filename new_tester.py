@@ -165,8 +165,8 @@ def test(json_string):
             error["lineNo"] = 0
             error["columnNo"] = 0
             error["fileName"] = test_file
-            error["message"] = err
-            error["hint"] = "{} was not found in the tester output.\n".format(repr(csv_separator))
+            error["message"] = "{} was not found in the tester output.\n".format(repr(csv_separator))
+            error["hint"] = "This shouldn't happen..."
             output["style"] = 0
             output["errors"].append(error)
         else:
