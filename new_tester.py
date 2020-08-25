@@ -7,6 +7,7 @@ import time
 from collections import OrderedDict
 from io import StringIO
 from re import match
+import re
 from shutil import rmtree, copy2, copystat, Error
 
 
@@ -74,6 +75,7 @@ def copyfiles(src, dst, ignore=None):
 
 testing_path = "/tmp/prolog-tester"
 main_test_re = "test_pr.*\.pl"
+line_re = r".pl:(\d+)"
 csv_separator = "START_SIMPLE_REPORT\n"
 
 
@@ -150,14 +152,19 @@ def test(json_string):
         console_output.append("file: {} stdout:\n{}".format(test_file, out))
         console_output.append("file: {} stderr:\n{}".format(test_file, err))
         if err:
-            error = dict()
-            error["lineNo"] = 0
-            error["columnNo"] = 0
-            error["fileName"] = test_file
-            error["message"] = err
-            error["hint"] = "Make sure your code works"
-            output["style"] = 0
-            output["errors"].append(error)
+            for line in err.split("\n"):
+                error = dict()
+                error["lineNo"] = 0
+                error["columnNo"] = 0
+                error["fileName"] = test_file
+                error["message"] = line
+                if line.startswith("ERROR"):
+                    error["hint"] = "Make sure your code works locally first"
+                output["style"] = 0
+                matches = re.findall(line_re, line)
+                if len(matches) > 0:
+                    error["lineNo"] = matches[0]
+                output["errors"].append(error)
 
         csv_start = out.rfind(csv_separator)
         if csv_start < 0:
