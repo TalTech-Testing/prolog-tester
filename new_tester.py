@@ -246,7 +246,7 @@ def test(json_string):
         total_granted += granted
         test_suites.append(test_context)
 
-    output["consoleOutput"] = console_output
+    output["consoleOutput"] = "\n\n".join(console_output)
     output["testSuites"] = test_suites
     if total_points == 0:
         output["percentage"] = 0
